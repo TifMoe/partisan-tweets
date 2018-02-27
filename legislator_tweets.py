@@ -3,6 +3,7 @@ import tweepy
 import time
 import gzip
 import pickle
+import pandas as pd
 from datetime import timedelta, datetime
 from configparser import ConfigParser
 
@@ -69,8 +70,34 @@ class TwAPI:
                                wait_on_rate_limit=True,
                                count=200).items(200)
 
-        for tweet in self.limit_handled(cursor.items()):
-            fav_list.append(tweet._json)
+        for tweet in self.limit_handled(cursor):
+            fav = tweet._json
+            fav['favorited_by'] = screen_name
+
+            fav_list.append(fav)
+
+        return fav_list
+
+    def fetch_all_favorites(self, screen_names):
+        """
+        Take in list of twitter screen names and fetch each user's 200 most recent favorites
+        """
+        fav_list = []
+
+        for index, name in enumerate(screen_names):
+            print(index, name)
+
+            try:
+                fav = self.fetch_user_favorites(screen_name=name)
+
+                if fav:
+                    fav_list.extend(fav)
+
+            except tweepy.error.TweepError as e:
+                if e.response.status_code == 404:
+                    pass
+                else:
+                    raise e
 
         return fav_list
 
@@ -125,15 +152,24 @@ api = TwAPI(consumer_key=config.get('TwitterKeys', 'consumer_key'),
             access_token_secret=config.get('TwitterKeys', 'access_token_secret'))
 
 twitter_sc_names = create_list_twitter_accts(social)
-week_ago = datetime.now() - timedelta(days=7)
+month_ago = datetime.now() - timedelta(days=30)
 
 time_lines = api.fetch_all_timelines(screen_names=twitter_sc_names,
-                                     last_date=week_ago,
+                                     last_date=month_ago,
                                      include_rts=False)
 
 with gzip.open('data/raw/raw_tweets.pickle', 'wb') as file:
     pickle.dump(time_lines, file)
 
+favorites = api.fetch_all_favorites(screen_names=twitter_sc_names)
 
-test = twitter_sc_names[0]
-test_fav = api.fetch_user_favorites(screen_name=test)
+with gzip.open('data/raw/raw_favorites.pickle', 'wb') as file:
+    pickle.dump(favorites, file)
+
+wide_fav_df = pd.io.json.json_normalize(favorites)
+
+favorites_df = wide_fav_df.loc[:, ['created_at', 'favorite_count', 'favorited_by',
+                                   'text', 'user.description', 'user.screen_name']]
+
+favorites_df.to_pickle('data/interim/favorites_df.pickle')
+
