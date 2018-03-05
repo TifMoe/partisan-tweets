@@ -1,11 +1,11 @@
 import gzip
 import pickle
 import yaml
-from sqlalchemy import create_engine
 import pandas as pd
 from datetime import timedelta, datetime
-from src.data.twitter_functions import TwAPI, create_list_twitter_accts
+from src.data.twitter_api.twitter_functions import TwAPI, create_list_twitter_accts
 from configparser import ConfigParser
+from src.data.mongo_db.db_functions import find_legislator_parties
 
 config = ConfigParser()
 config.read('config.ini')
@@ -38,51 +38,6 @@ favorites_df.to_pickle('data/interim/favorites_df.pickle')
 # Apply party labels for legislators doing the favoriting and ignore users with mixed favorites
 
 
-# Find party affiliation for favorites using legislator data in postgres
-def db_create_engine(config_file, conn_name):
-    """
-    Create a sqlAlchemy engine to connect to Postgres database given some connection parameters in config file.
-    Note - this can be used to connect to any Postgres db either remotely or locally
-
-    :param config_file: A config file with connection configuration details under conn_name heading
-    :param conn_name: The section name for set of configuration details for desired connection
-    :return: A sqlAlchemy engine connected to aws postgres database
-    """
-    config = ConfigParser()
-    config.read(config_file)
-
-    engine = create_engine('postgresql://{}:{}@{}:{}/{}'
-                           .format(config.get('{}'.format(conn_name), 'user'),
-                                   config.get('{}'.format(conn_name), 'password'),
-                                   config.get('{}'.format(conn_name), 'host'),
-                                   config.get('{}'.format(conn_name), 'port'),
-                                   config.get('{}'.format(conn_name), 'db')))
-
-    return engine
-
-
-legislator_parties_sql = """
-        SELECT 
-        s.twitter_screen_name, 
-        l.party
-    FROM legislators l
-    JOIN social s
-        ON l.legislator_id = s.legislator_id
-    WHERE s.twitter_screen_name <>'';
-"""
-
-
-def find_legislator_parties(list_social):
-    """
-    Take a list of twitter accounts and return a dictionary with the corresponding party label
-    """
-    engine = db_create_engine(config_file='config.ini', conn_name='PostgresConfig')
-    result = engine.execute(legislator_parties_sql)
-    party_dict = {row[0]: row[1] for row in result}
-
-    return party_dict
-
-
 party_dict = find_legislator_parties(social)
 
 with open('data/raw/parties.pickle', 'wb') as file:
@@ -110,10 +65,13 @@ print(party_wide[['max_percent', 'max_count', 'party']].sort_values(by='max_coun
 print(party_wide.groupby('max_percent')['party'].count())
 print(party_wide.groupby('max_count')['party'].count())
 
-""" Assumptions to define relevant favorites:
+""" 
+Assumptions to define relevant favorites:
+
 - Either favorited by a Republican or Democrat
 - At least 99% of favorites in same party
-- 
+- Not also a current congressional legislator
+- At least two tweets favorited by legislator
 
 """
 # I'm going to throw away any favorites that have less than 99% same-party favorites
