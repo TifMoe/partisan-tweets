@@ -1,9 +1,10 @@
 import yaml
-from functions import TwAPI, create_list_twitter_accts
+from src.data.twitter_functions import TwAPI, create_list_twitter_accts
 import gzip
 import pickle
 from datetime import timedelta, datetime
 from configparser import ConfigParser
+from src.data.db_connect import db_create_engine
 
 config = ConfigParser()
 config.read('config.ini')
@@ -30,3 +31,20 @@ time_lines = api.fetch_all_timelines(screen_names=twitter_sc_names,
 with gzip.open('data/raw/raw_tweets.pickle', 'wb') as file:
     pickle.dump(time_lines, file)
 
+
+# Pickle legislator party affiliation
+def find_legislator_parties(list_social):
+    """
+    Take a list of twitter accounts and return a dictionary with the corresponding party label
+    """
+    engine = db_create_engine(config_file='config.ini', conn_name='PostgresConfig')
+    result = engine.execute(legislator_parties_sql)
+    party_dict = {row[0]: row[1] for row in result}
+
+    return party_dict
+
+
+party_dict = find_legislator_parties(social)
+
+with open('data/raw/parties.pickle', 'wb') as file:
+    pickle.dump(party_dict, file)

@@ -4,7 +4,7 @@ import yaml
 from sqlalchemy import create_engine
 import pandas as pd
 from datetime import timedelta, datetime
-from functions import TwAPI, create_list_twitter_accts
+from src.data.twitter_functions import TwAPI, create_list_twitter_accts
 from configparser import ConfigParser
 
 config = ConfigParser()
@@ -109,9 +109,17 @@ print(party_wide[['max_percent', 'max_count', 'party']].sort_values(by='max_coun
 
 print(party_wide.groupby('max_percent')['party'].count())
 print(party_wide.groupby('max_count')['party'].count())
+
+""" Assumptions to define relevant favorites:
+- Either favorited by a Republican or Democrat
+- At least 99% of favorites in same party
+- 
+
+"""
 # I'm going to throw away any favorites that have less than 99% same-party favorites
 # I'm going to ignore any users with Independent party
 # I'm going to ignore any favorited users who are primary users (official legislators)
+# I'm going to
 
 party_wide['official'] = [True if name.lower() in party_dict else False for name in party_wide.index]
 
