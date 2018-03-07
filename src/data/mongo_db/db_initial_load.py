@@ -10,8 +10,8 @@ client = MongoClient("mongodb://{}:{}@{}/{}".format(
                         config.get('MongoConfig', 'user'),
                         config.get('MongoConfig', 'password'),
                         config.get('MongoConfig', 'host'),
-                        config.get('MongoConfig', 'db')
-                        ), int(config.get('MongoConfig', 'port')))
+                        config.get('MongoConfig', 'db'),
+                        int(config.get('MongoConfig', 'port'))))
 
 db = client.twitter_db
 
