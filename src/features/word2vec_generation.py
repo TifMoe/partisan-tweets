@@ -4,6 +4,7 @@ from pymongo import MongoClient
 import src.data.aws_ec2_functions as aws
 import re
 import string
+import pickle
 import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -99,10 +100,22 @@ clean_test = [clean_tweet(tweet[0]) for tweet in test_data]
 tokenized_train = [spacy_tokenizer(tweet) for tweet in clean_train]
 tokenized_test = [spacy_tokenizer(tweet) for tweet in clean_test]
 
+with open('data/processed/tokenized_train_a.pickle', 'wb') as file:
+    pickle.dump(tokenized_train, file)
+
+with open('data/processed/tokenized_test_b.pickle', 'wb') as file:
+    pickle.dump(tokenized_test, file)
+
 
 # let X be a list of tokenized texts (i.e. list of lists of tokens)
 model = gensim.models.Word2Vec(tokenized_train, size=100)
 w2v = dict(zip(model.wv.index2word, model.wv.vectors))
+
+with open('models/w2v', 'wb') as file:
+    pickle.dump(model, file)
+
+with open('data/processed/w2v_dict.pickle', 'wb') as file:
+    pickle.dump(w2v, file)
 
 
 class MeanEmbeddingVectorizer(object):
