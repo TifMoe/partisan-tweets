@@ -22,13 +22,13 @@ api = TwAPI(consumer_key=config.get('TwitterKeys', 'consumer_key'),
             access_token_secret=config.get('TwitterKeys', 'access_token_secret'))
 
 twitter_sc_names = create_list_twitter_accts(social)
-month_ago = datetime.now() - timedelta(days=30)
+month_ago = datetime.now() - timedelta(days=300)
 
 time_lines = api.fetch_all_timelines(screen_names=twitter_sc_names,
                                      last_date=month_ago,
                                      include_rts=False)
 
-with gzip.open('data/raw/raw_tweets.pickle', 'wb') as file:
+with gzip.open('data/raw/raw_tweets_300.pickle', 'wb') as file:
     pickle.dump(time_lines, file)
 
 
