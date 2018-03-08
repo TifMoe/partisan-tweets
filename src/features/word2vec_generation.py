@@ -10,13 +10,7 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import spacy
     nlp = spacy.load('en')
-import numpy as np
 
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.ensemble import ExtraTreesClassifier
-from sklearn.naive_bayes import BernoulliNB, MultinomialNB
-from sklearn.pipeline import Pipeline
-from collections import defaultdict
 
 
 punctuations = string.punctuation
@@ -97,6 +91,16 @@ test_data = unlist_tweets(test_b)
 clean_train = [clean_tweet(tweet[0]) for tweet in train_data]
 clean_test = [clean_tweet(tweet[0]) for tweet in test_data]
 
+y_train = [1 if tweet[1]=='R' else 0 for tweet in train_data]
+y_test = [1 if tweet[1]=='R' else 0 for tweet in test_data]
+
+with open('data/processed/y_train_a.pickle', 'wb') as file:
+    pickle.dump(y_train, file)
+
+with open('data/processed/y_test_b.pickle', 'wb') as file:
+    pickle.dump(y_test, file)
+
+
 tokenized_train = [spacy_tokenizer(tweet) for tweet in clean_train]
 tokenized_test = [spacy_tokenizer(tweet) for tweet in clean_test]
 
@@ -116,55 +120,3 @@ with open('models/w2v', 'wb') as file:
 
 with open('data/processed/w2v_dict.pickle', 'wb') as file:
     pickle.dump(w2v, file)
-
-
-class MeanEmbeddingVectorizer(object):
-    def __init__(self, word2vec):
-        self.word2vec = word2vec
-        # if a text is empty we should return a vector of zeros
-        # with the same dimensionality as all the other vectors
-        self.dim = len(word2vec.itervalues().next())
-
-    def fit(self, X, y):
-        return self
-
-    def transform(self, X):
-        return np.array([
-            np.mean([self.word2vec[w] for w in words if w in self.word2vec]
-                    or [np.zeros(self.dim)], axis=0)
-            for words in X
-        ])
-
-
-class TfidfEmbeddingVectorizer(object):
-    def __init__(self, word2vec):
-        self.word2vec = word2vec
-        self.word2weight = None
-        self.dim = len(word2vec.itervalues().next())
-
-    def fit(self, X, y):
-        tfidf = TfidfVectorizer(analyzer=lambda x: x)
-        tfidf.fit(X)
-        # if a word was never seen - it must be at least as infrequent
-        # as any of the known words - so the default idf is the max of
-        # known idf's
-        max_idf = max(tfidf.idf_)
-        self.word2weight = defaultdict(
-            lambda: max_idf,
-            [(w, tfidf.idf_[i]) for w, i in tfidf.vocabulary_.items()])
-
-        return self
-
-    def transform(self, X):
-        return np.array([
-                np.mean([self.word2vec[w] * self.word2weight[w]
-                         for w in words if w in self.word2vec] or
-                        [np.zeros(self.dim)], axis=0)
-                for words in X
-            ])
-
-
-etree_w2v = Pipeline([("word2vec vectorizer", MeanEmbeddingVectorizer(w2v)),
-                        ("extra trees", ExtraTreesClassifier(n_estimators=200))])
-etree_w2v_tfidf = Pipeline([("word2vec vectorizer", TfidfEmbeddingVectorizer(w2v)),
-                        ("extra trees", ExtraTreesClassifier(n_estimators=200))])
